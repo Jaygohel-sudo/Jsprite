@@ -1,6 +1,6 @@
-/* =====================
+/*
    Undo / Redo System
-   ===================== */
+   */
 
 import { setPixel } from "./pixel-editor-core.js";
 
@@ -58,7 +58,6 @@ export class History {
     this.stack.length = this.index + 1;
     this.stack.push(cmd);
     this.index++;
-    cmd.execute();
   }
 
   undo() {

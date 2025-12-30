@@ -1,3 +1,5 @@
+import { history, strokeId } from "./main.js";
+
 export let spaceDown = false;
 
 window.addEventListener("keydown", (e) => {

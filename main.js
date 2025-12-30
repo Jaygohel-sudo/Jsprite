@@ -26,7 +26,7 @@ export let mx = 0;
 export let my = 0;
 export let shiftDown = false;
 let drawline = false;
-
+export let strokeId = 0;
 export const history = new History();
 
 const canvas = document.getElementById("canvas");
@@ -111,6 +111,7 @@ canvas.addEventListener("mousemove", () => {
 });
 canvas.addEventListener("mousedown", (e) => {
   if (e.button === 0 && !spaceDown) {
+    strokeId++;
     drawing = true;
     draw(e, mousePixel.x, mousePixel.y);
   }

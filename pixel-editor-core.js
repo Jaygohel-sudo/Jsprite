@@ -9,9 +9,9 @@ import {
   my,
   shiftDown,
   history,
+  strokeId,
 } from "./main.js";
 
-let strokeId = 0;
 export function pixelIndex(x, y, width) {
   return (y * width + x) * 4;
 }
@@ -66,7 +66,9 @@ export class Layer {
   }
 }
 
-//  Pixel Operations
+/* 
+   Pixel Operations
+    */
 
 export function setPixel(layer, x, y, r, g, b, a = 255) {
   if (x < 0 || y < 0 || x >= layer.width || y >= layer.height) return;
@@ -75,8 +77,10 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
   const p = layer.pixels;
 
   const pi = y * layer.width + x;
-  if (layer.maskIndex[pi] === strokeId) return;
-  layer.maskIndex[pi] = strokeId;
+  if (layer.strokeMask[pi] === strokeId) return;
+
+  layer.strokeMask[pi] = strokeId;
+
   // Destination pixel
   const dr = p[i];
   const dg = p[i + 1];
@@ -88,6 +92,7 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
 
   // Alpha out
   const outA = sa + da * (1 - sa);
+
   if (outA === 0) {
     p[i] = p[i + 1] = p[i + 2] = p[i + 3] = 0;
     return;
@@ -114,7 +119,9 @@ export function getPixel(layer, x, y) {
   return [p[i], p[i + 1], p[i + 2], p[i + 3]];
 }
 
-//  Renderer (Canvas View)
+/* =====================
+   Renderer (Canvas View)
+   ===================== */
 
 export class Renderer {
   constructor(width, height) {
@@ -387,9 +394,6 @@ export class Viewport {
 export class Tool {
   onDown(sprite, x, y, viewport) {
     this.stroke = new CompositeCommand();
-    strokeId++;
-    const layer = sprite.currentFrame.layers[0];
-    layer.strokeMask.fill(-1); // reset per stroke
   }
   onMove(sprite, x, y) {}
   onUp(sprite, x, y) {
@@ -399,24 +403,25 @@ export class Tool {
     this.stroke = null;
   }
   applyPixel(sprite, x, y, color) {
+    if (!this.stroke) return;
     const layer = sprite.currentFrame.layers[0];
     if (x < 0 || y < 0 || x >= layer.width || y >= layer.height) return;
-    const maskIndex = y * layer.width + x;
-    if (layer.strokeMask[maskIndex] === strokeId) return;
+    const prevColor = getPixel(layer, x, y).slice();
 
-    layer.strokeMask[maskIndex] = strokeId;
-    const before = getPixel(layer, x, y);
-    const beforeCopy = before.slice();
-
-    setPixel(layer, x, y, ...color);
-    const afterCopy = getPixel(layer, x, y);
-    // const cmd = new PixelCommand(layer, x, y, beforeCopy, afterCopy);
-
-    // if (!this.stroke) {
+    // // prevent duplicate commands
+    // if (
+    //   prevColor[0] === color[0] &&
+    //   prevColor[1] === color[1] &&
+    //   prevColor[2] === color[2] &&
+    //   prevColor[3] === color[3]
+    // ) {
     //   return;
     // }
-    // this.stroke.add(cmd);
-    // cmd.execute(); // immediate feedback
+
+    const cmd = new PixelCommand(layer, x, y, prevColor, color);
+
+    this.stroke.add(cmd);
+    cmd.execute();
   }
 }
 
@@ -486,6 +491,7 @@ export class BrushTool extends Tool {
   }
 
   onUp() {
+    super.onUp();
     this.lastX = null;
     this.lastY = null;
   }
@@ -539,6 +545,10 @@ export class EraserTool extends Tool {
     this.lastY = null;
   }
 
+  drawPixel(sprite, x, y) {
+    const layer = sprite.currentFrame.layers[0];
+    setPixel(layer, x, y, ...this.color);
+  }
   eraseLine(sprite, x0, y0, x1, y1, brushMask, color) {
     const layer = sprite.currentFrame.layers[0];
     x0 |= 0;
@@ -575,7 +585,7 @@ export class EraserTool extends Tool {
   }
 }
 
-export function drawLine(sprite, x0, y0, x1, y1, brushMask, size, callback) {
+export function drawLine(sprite, x0, y0, x1, y1, brushMask, size, plot) {
   const layer = sprite.currentFrame.layers[0];
 
   x0 |= 0;
@@ -593,7 +603,7 @@ export function drawLine(sprite, x0, y0, x1, y1, brushMask, size, callback) {
     for (const [mx, my] of brushMask) {
       const px = x0 + mx;
       const py = y0 + my;
-      callback(px, py);
+      plot(px, py);
     }
 
     if (x0 === x1 && y0 === y1) break;
