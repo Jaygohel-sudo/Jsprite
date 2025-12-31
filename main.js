@@ -112,8 +112,13 @@ canvas.addEventListener("mousemove", () => {
 canvas.addEventListener("mousedown", (e) => {
   if (e.button === 0 && !spaceDown) {
     strokeId++;
+
     drawing = true;
-    draw(e, mousePixel.x, mousePixel.y);
+    const { x, y } = getPixelFromMouse(e);
+    mousePixel.x = x;
+    mousePixel.y = y;
+
+    activeTool.onDown(spriteData.sprite, x, y, viewport);
   }
 });
 canvas.addEventListener("wheel", (e) => {
@@ -136,7 +141,6 @@ window.addEventListener("mousemove", (e) => {
     mousePixel.x = x;
     mousePixel.y = y;
     activeTool.onMove(spriteData.sprite, x, y, viewport);
-    draw(e, x, y);
   }
   mousePixel = getPixelFromMouse(e);
 });
@@ -197,7 +201,7 @@ window.addEventListener("keyup", (e) => {
 });
 
 function draw(e, pixelX, pixelY) {
-  activeTool.onDown(spriteData.sprite, pixelX, pixelY, viewport);
+  // activeTool.onDown(spriteData.sprite, pixelX, pixelY, viewport);
 }
 function loop() {
   renderer.renderFrame(

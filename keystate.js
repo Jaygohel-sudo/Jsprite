@@ -1,7 +1,7 @@
-import { history, strokeId } from "./main.js";
+import { history } from "./main.js";
 
 export let spaceDown = false;
-
+export let undoCalled = false;
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     spaceDown = true;
@@ -10,6 +10,7 @@ window.addEventListener("keydown", (e) => {
   // UNDO
   if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "z") {
     e.preventDefault();
+    undoCalled = true;
     history.undo();
   }
 
@@ -27,4 +28,5 @@ window.addEventListener("keyup", (e) => {
   if (e.code === "Space") {
     spaceDown = false;
   }
+  undoCalled = false;
 });

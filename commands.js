@@ -2,7 +2,7 @@
    Undo / Redo System
    */
 
-import { setPixel } from "./pixel-editor-core.js";
+import { setPixel, setPixelDirect } from "./pixel-editor-core.js";
 
 export class Command {
   execute() {}
@@ -40,11 +40,11 @@ export class PixelCommand extends Command {
   }
 
   execute() {
-    setPixel(this.layer, this.x, this.y, ...this.after);
+    setPixelDirect(this.layer, this.x, this.y, ...this.after);
   }
 
   undo() {
-    setPixel(this.layer, this.x, this.y, ...this.before);
+    setPixelDirect(this.layer, this.x, this.y, ...this.before);
   }
 }
 
@@ -52,23 +52,27 @@ export class History {
   constructor() {
     this.stack = [];
     this.index = -1;
+    this.strokeId = 0;
   }
 
   push(cmd) {
     this.stack.length = this.index + 1;
     this.stack.push(cmd);
     this.index++;
+    this.strokeId++;
   }
 
   undo() {
     if (this.index < 0) return;
     this.stack[this.index].undo();
     this.index--;
+    this.strokeId--;
   }
 
   redo() {
     if (this.index >= this.stack.length - 1) return;
     this.index++;
     this.stack[this.index].execute();
+    this.strokeId++;
   }
 }

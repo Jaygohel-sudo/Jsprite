@@ -75,10 +75,9 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
 
   const i = pixelIndex(x, y, layer.width);
   const p = layer.pixels;
-
   const pi = y * layer.width + x;
-  if (layer.strokeMask[pi] === strokeId) return;
 
+  if (layer.strokeMask[pi] === strokeId) return;
   layer.strokeMask[pi] = strokeId;
 
   // Destination pixel
@@ -87,6 +86,11 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
   const db = p[i + 2];
   const da = p[i + 3] / 255;
 
+  if (a === 0) {
+    p[i] = p[i + 1] = p[i + 2] = p[i + 3] = 0;
+    return;
+  }
+
   // Source pixel
   const sa = a / 255;
 
@@ -94,7 +98,10 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
   const outA = sa + da * (1 - sa);
 
   if (outA === 0) {
-    p[i] = p[i + 1] = p[i + 2] = p[i + 3] = 0;
+    p[i] = r;
+    p[i + 1] = g;
+    p[i + 2] = b;
+    p[i + 3] = a;
     return;
   }
 
@@ -103,6 +110,15 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
   p[i + 1] = Math.round((g * sa + dg * da * (1 - sa)) / outA);
   p[i + 2] = Math.round((b * sa + db * da * (1 - sa)) / outA);
   p[i + 3] = Math.round(outA * 255);
+
+  onPixelChange();
+}
+export function setPixelDirect(layer, x, y, r, g, b, a) {
+  const i = pixelIndex(x, y, layer.width);
+  layer.pixels[i] = r;
+  layer.pixels[i + 1] = g;
+  layer.pixels[i + 2] = b;
+  layer.pixels[i + 3] = a;
   onPixelChange();
 }
 function onPixelChange() {
@@ -119,9 +135,9 @@ export function getPixel(layer, x, y) {
   return [p[i], p[i + 1], p[i + 2], p[i + 3]];
 }
 
-/* =====================
+/* 
    Renderer (Canvas View)
-   ===================== */
+    */
 
 export class Renderer {
   constructor(width, height) {
@@ -197,6 +213,7 @@ export class Renderer {
       const da = target[i + 3] / 255;
 
       const outA = sa + da * (1 - sa);
+
       if (outA === 0) {
         target[i] = target[i + 1] = target[i + 2] = target[i + 3] = 0;
         continue;
@@ -394,34 +411,44 @@ export class Viewport {
 export class Tool {
   onDown(sprite, x, y, viewport) {
     this.stroke = new CompositeCommand();
+
+    this.touched = new Map();
   }
   onMove(sprite, x, y) {}
   onUp(sprite, x, y) {
     if (this.stroke && this.stroke.commands.length > 0) {
       history.push(this.stroke);
     }
+
     this.stroke = null;
   }
   applyPixel(sprite, x, y, color) {
     if (!this.stroke) return;
     const layer = sprite.currentFrame.layers[0];
     if (x < 0 || y < 0 || x >= layer.width || y >= layer.height) return;
-    const prevColor = getPixel(layer, x, y).slice();
 
-    // // prevent duplicate commands
-    // if (
-    //   prevColor[0] === color[0] &&
-    //   prevColor[1] === color[1] &&
-    //   prevColor[2] === color[2] &&
-    //   prevColor[3] === color[3]
-    // ) {
-    //   return;
-    // }
+    const key = `${x},${y}`;
 
-    const cmd = new PixelCommand(layer, x, y, prevColor, color);
+    if (!this.touched.has(key)) {
+      const prev = getPixel(layer, x, y).slice();
 
-    this.stroke.add(cmd);
-    cmd.execute();
+      const cmd = new PixelCommand(
+        layer,
+        x,
+        y,
+        prev, // before (once)
+        color // after (will change)
+      );
+
+      this.touched.set(key, cmd);
+      this.stroke.add(cmd);
+    } else {
+      // SAME stroke → accumulate
+      const cmd = this.touched.get(key);
+      cmd.after = color;
+      console.log(history.stack);
+    }
+    setPixel(layer, x, y, ...color);
   }
 }
 
@@ -502,6 +529,7 @@ export class EraserTool extends Tool {
     this.color = color;
   }
   onDown(sprite, x, y, viewport) {
+    super.onDown(sprite, x, y, viewport);
     this.lastX = x;
     this.lastY = y;
 
@@ -515,10 +543,10 @@ export class EraserTool extends Tool {
       const py = y + my;
 
       if (px < 0 || py < 0 || px >= layer.width || py >= layer.height) continue;
+      this.applyPixel(sprite, px, py, this.color);
+      // const i = pixelIndex(px, py, layer.width);
 
-      const i = pixelIndex(px, py, layer.width);
-
-      layer.pixels[i + 3] = 0; // hard erase alpha
+      // layer.pixels[i + 3] = 0; // hard erase alpha
     }
   }
 
@@ -533,7 +561,9 @@ export class EraserTool extends Tool {
       y,
       mask,
 
-      this.color
+      (px, py) => {
+        this.applyPixel(sprite, px, py, this.color, "erase");
+      }
     );
 
     this.lastX = x;
@@ -541,6 +571,7 @@ export class EraserTool extends Tool {
   }
 
   onUp() {
+    super.onUp();
     this.lastX = null;
     this.lastY = null;
   }
@@ -549,7 +580,7 @@ export class EraserTool extends Tool {
     const layer = sprite.currentFrame.layers[0];
     setPixel(layer, x, y, ...this.color);
   }
-  eraseLine(sprite, x0, y0, x1, y1, brushMask, color) {
+  eraseLine(sprite, x0, y0, x1, y1, brushMask, plot) {
     const layer = sprite.currentFrame.layers[0];
     x0 |= 0;
     y0 |= 0;
@@ -566,8 +597,7 @@ export class EraserTool extends Tool {
       for (const [mx, my] of brushMask) {
         const px = x0 + mx;
         const py = y0 + my;
-        const i = pixelIndex(px, py, layer.width);
-        layer.pixels[i + 3] = 0;
+        plot(px, py);
       }
 
       if (x0 === x1 && y0 === y1) break;
