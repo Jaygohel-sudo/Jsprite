@@ -30,9 +30,9 @@ export class CompositeCommand extends Command {
 }
 
 export class PixelCommand extends Command {
-  constructor(layer, x, y, before, after) {
+  constructor(cel, x, y, before, after) {
     super();
-    this.layer = layer;
+    this.cel = cel;
     this.x = x;
     this.y = y;
     this.before = before;
@@ -40,11 +40,11 @@ export class PixelCommand extends Command {
   }
 
   execute() {
-    setPixelDirect(this.layer, this.x, this.y, ...this.after);
+    setPixelDirect(this.cel, this.x, this.y, ...this.after);
   }
 
   undo() {
-    setPixelDirect(this.layer, this.x, this.y, ...this.before);
+    setPixelDirect(this.cel, this.x, this.y, ...this.before);
   }
 }
 

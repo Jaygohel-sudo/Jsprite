@@ -24,15 +24,44 @@ export class Sprite {
   constructor(width, height) {
     this.width = width;
     this.height = height;
+
+    this.layers = [];
     this.frames = [];
+    this.activeLayer = 0;
     this.activeFrame = 0;
   }
 
-  addFrame() {
+  addLayer(name = "Layer") {
+    const layer = new Layer(name);
+    this.layers.push(layer);
+    return layer;
+  }
+
+  addFrame(copyPrevious = false) {
+    const frame = new Frame();
+    if (copyPrevious && this.frames.length > 0) {
+      const prev = this.frames[this.frames.length - 1];
+
+      for (const [layerIndex, cel] of prev.cels.entries()) {
+        frame.cels.set(layerIndex, cel.clone());
+      }
+    }
+
+    this.frames.push(frame);
+    this.activeFrame = this.frames.length - 1;
+    return frame;
+  }
+  addFrameAfter(index, copy = false) {
     const frame = new Frame();
 
-    frame.addLayer(this.width, this.height);
-    this.frames.push(frame);
+    if (copy && this.frames[index]) {
+      for (const [layerIndex, cel] of this.frames[index].cels) {
+        frame.cels.set(layerIndex, cel.clone());
+      }
+    }
+
+    this.frames.splice(index + 1, 0, frame);
+    this.activeFrame = index + 1;
     return frame;
   }
 
@@ -43,42 +72,51 @@ export class Sprite {
 
 export class Frame {
   constructor() {
-    this.layers = [];
+    this.cels = new Map();
   }
 
-  addLayer(width, height) {
-    const layer = new Layer(width, height);
-    this.layers.push(layer);
-    return layer;
+  getCel(layerIndex, width, height) {
+    let cel = this.cels.get(layerIndex);
+    if (!cel) {
+      cel = new Cel(width, height);
+      this.cels.set(layerIndex, cel);
+    }
+    return cel;
   }
 }
 
 export class Layer {
+  constructor(name = "Layer") {
+    this.name = name;
+    this.visible = true;
+    this.opacity = 1;
+    this.locked = false;
+  }
+}
+export class Cel {
   constructor(width, height) {
     this.width = width;
     this.height = height;
-    this.visible = true;
-    this.opacity = 1;
-
     // RGBA buffer
     this.pixels = new Uint8ClampedArray(width * height * 4);
     this.strokeMask = new Uint32Array(width * height);
   }
+  clone() {
+    const c = new Cel(this.width, this.height);
+    c.pixels.set(this.pixels);
+    c.strokeMask.set(this.strokeMask);
+    return c;
+  }
 }
 
-/* 
-   Pixel Operations
-    */
+/*  Pixel Operations */
 
-export function setPixel(layer, x, y, r, g, b, a = 255) {
-  if (x < 0 || y < 0 || x >= layer.width || y >= layer.height) return;
+export function setPixel(cel, x, y, r, g, b, a = 255) {
+  if (x < 0 || y < 0 || x >= cel.width || y >= cel.height) return;
 
-  const i = pixelIndex(x, y, layer.width);
-  const p = layer.pixels;
-  const pi = y * layer.width + x;
-
-  if (layer.strokeMask[pi] === strokeId) return;
-  layer.strokeMask[pi] = strokeId;
+  const i = pixelIndex(x, y, cel.width);
+  const p = cel.pixels;
+  const pi = y * cel.width + x;
 
   // Destination pixel
   const dr = p[i];
@@ -113,24 +151,23 @@ export function setPixel(layer, x, y, r, g, b, a = 255) {
 
   onPixelChange();
 }
-export function setPixelDirect(layer, x, y, r, g, b, a) {
-  const i = pixelIndex(x, y, layer.width);
-  layer.pixels[i] = r;
-  layer.pixels[i + 1] = g;
-  layer.pixels[i + 2] = b;
-  layer.pixels[i + 3] = a;
+export function setPixelDirect(cel, x, y, r, g, b, a) {
+  const i = pixelIndex(x, y, cel.width);
+  cel.pixels[i] = r;
+  cel.pixels[i + 1] = g;
+  cel.pixels[i + 2] = b;
+  cel.pixels[i + 3] = a;
   onPixelChange();
 }
 function onPixelChange() {
   fileState.dirty = true;
 }
 
-export function getPixel(layer, x, y) {
-  if (x < 0 || y < 0 || x >= layer.width || y >= layer.height)
-    return [0, 0, 0, 0];
+export function getPixel(cel, x, y) {
+  if (x < 0 || y < 0 || x >= cel.width || y >= cel.height) return [0, 0, 0, 0];
 
-  const i = pixelIndex(x, y, layer.width);
-  const p = layer.pixels;
+  const i = pixelIndex(x, y, cel.width);
+  const p = cel.pixels;
 
   return [p[i], p[i + 1], p[i + 2], p[i + 3]];
 }
@@ -167,18 +204,25 @@ export class Renderer {
     this.canvas.height = height;
   }
 
-  renderFrame(frame, width, height) {
+  renderFrame(sprite, frame, width, height) {
     const imageData = this.ctx.createImageData(width, height);
     const out = imageData.data;
+
     this.fillCheckerboard(out, width, height);
-    for (const layer of frame.layers) {
-      if (!layer.visible) continue;
-      this.compositeLayer(out, layer);
-    }
+
+    sprite.layers.forEach((layer, layerIndex) => {
+      if (!layer.visible || layer.opacity === 0) return;
+
+      const cel = frame.cels.get(layerIndex);
+      if (!cel) return;
+
+      this.compositeCel(out, cel, layer);
+    });
 
     this.ctx.putImageData(imageData, 0, 0);
   }
-  renderFrameToImageData(frame, width, height) {
+
+  renderFrameToImageData(sprite, frame, width, height) {
     const imageData = this.ctx.createImageData(width, height);
     const out = imageData.data;
 
@@ -186,17 +230,21 @@ export class Renderer {
     for (let i = 0; i < out.length; i += 4) {
       out[i + 3] = 0;
     }
-
-    for (const layer of frame.layers) {
+    for (let i = 0; i < sprite.layers.length; i++) {
+      const layer = sprite.layers[i];
       if (!layer.visible) continue;
-      this.compositeLayer(out, layer);
+
+      const cel = frame.cels.get(i);
+      if (!cel) continue;
+
+      this.compositeCel(out, cel, layer);
     }
 
     return imageData;
   }
 
-  compositeLayer(target, layer) {
-    const src = layer.pixels;
+  compositeCel(target, cel, layer) {
+    const src = cel.pixels;
     const opacity = layer.opacity;
 
     for (let i = 0; i < src.length; i += 4) {
@@ -263,8 +311,15 @@ export class Viewport {
     this.zoom--;
   }
   resize(w, h) {
-    this.canvas.width = w;
-    this.canvas.height = h;
+    const dpr = window.devicePixelRatio || 1;
+
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+
+    this.canvas.style.width = w + "px";
+    this.canvas.style.height = h + "px";
+
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   draw(sourceCanvas) {
@@ -411,8 +466,6 @@ export class Viewport {
 export class Tool {
   onDown(sprite, x, y, viewport) {
     this.stroke = new CompositeCommand();
-
-    this.touched = new Map();
   }
   onMove(sprite, x, y) {}
   onUp(sprite, x, y) {
@@ -422,34 +475,48 @@ export class Tool {
 
     this.stroke = null;
   }
-  applyPixel(sprite, x, y, color) {
+  applyPixel(cel, x, y, color) {
     if (!this.stroke) return;
-    const layer = sprite.currentFrame.layers[0];
-    if (x < 0 || y < 0 || x >= layer.width || y >= layer.height) return;
 
-    const key = `${x},${y}`;
+    if (x < 0 || y < 0 || x >= cel.width || y >= cel.height) return;
 
-    if (!this.touched.has(key)) {
-      const prev = getPixel(layer, x, y).slice();
+    const pi = y * cel.width + x;
 
-      const cmd = new PixelCommand(
-        layer,
-        x,
-        y,
-        prev, // before (once)
-        color // after (will change)
-      );
+    if (cel.strokeMask[pi] === strokeId) return;
+    cel.strokeMask[pi] = strokeId;
+    const prev = getPixel(cel, x, y).slice();
+    const blended = blendRGBA(prev, color);
+    const cmd = new PixelCommand(
+      cel,
+      x,
+      y,
+      prev, // before (once)
+      blended // after (will change)
+    );
 
-      this.touched.set(key, cmd);
-      this.stroke.add(cmd);
-    } else {
-      // SAME stroke → accumulate
-      const cmd = this.touched.get(key);
-      cmd.after = color;
-      console.log(history.stack);
-    }
-    setPixel(layer, x, y, ...color);
+    this.stroke.add(cmd);
+
+    setPixel(cel, x, y, ...color);
   }
+}
+function blendRGBA(dst, src) {
+  const [dr, dg, db, da] = dst;
+
+  const [sr, sg, sb, sa] = src;
+
+  const saNorm = sa / 255;
+  const daNorm = da / 255;
+
+  const outA = saNorm + daNorm * (1 - saNorm);
+
+  if (outA === 0) return [0, 0, 0, 0];
+
+  const r = Math.round((sr * saNorm + dr * daNorm * (1 - saNorm)) / outA);
+  const g = Math.round((sg * saNorm + dg * daNorm * (1 - saNorm)) / outA);
+  const b = Math.round((sb * saNorm + db * daNorm * (1 - saNorm)) / outA);
+  const a = Math.round(outA * 255);
+
+  return [r, g, b, a];
 }
 
 export class BrushTool extends Tool {
@@ -465,13 +532,15 @@ export class BrushTool extends Tool {
     this.color[3] = a;
   }
   onDown(sprite, x, y, viewport) {
+    const frame = sprite.currentFrame;
+    const cel = frame.getCel(sprite.activeLayer, sprite.width, sprite.height);
     super.onDown(sprite, x, y, viewport);
     if (!shiftDown) {
       this.anchor = { x, y };
     }
     if (shiftDown && this.anchor) {
       drawLine(
-        sprite,
+        cel,
         this.anchor.x,
         this.anchor.y,
         x,
@@ -479,7 +548,7 @@ export class BrushTool extends Tool {
         viewport.getBrushMask(viewport.cursorSize),
         viewport.cursorSize,
         (px, py) => {
-          this.applyPixel(sprite, px, py, this.color);
+          this.applyPixel(cel, px, py, this.color);
         }
       );
       this.anchor = { x, y };
@@ -489,19 +558,19 @@ export class BrushTool extends Tool {
 
     const mask = viewport.getBrushMask(viewport.cursorSize);
 
-    const layer = sprite.currentFrame.layers[0];
-
     for (const [mx, my] of mask) {
-      this.applyPixel(sprite, x + mx, y + my, this.color);
+      this.applyPixel(cel, x + mx, y + my, this.color);
     }
   }
 
   onMove(sprite, x, y, viewport) {
     if (this.lastX === null) return;
+    const frame = sprite.currentFrame;
+    const cel = frame.getCel(sprite.activeLayer, sprite.width, sprite.height);
 
     const mask = viewport.getBrushMask(viewport.cursorSize);
     drawLine(
-      sprite,
+      cel,
       this.lastX,
       this.lastY,
       x,
@@ -509,7 +578,7 @@ export class BrushTool extends Tool {
       mask,
       viewport.cursorSize,
       (px, py) => {
-        this.applyPixel(sprite, px, py, this.color);
+        this.applyPixel(cel, px, py, this.color);
       }
     );
 
@@ -534,16 +603,16 @@ export class EraserTool extends Tool {
     this.lastY = y;
 
     const mask = viewport.getBrushMask(viewport.cursorSize);
-    const half = Math.floor(viewport.cursorSize / 2);
 
-    const layer = sprite.currentFrame.layers[0];
+    const frame = sprite.currentFrame;
+    const cel = frame.getCel(sprite.activeLayer, sprite.width, sprite.height);
 
     for (const [mx, my] of mask) {
       const px = x + mx;
       const py = y + my;
 
-      if (px < 0 || py < 0 || px >= layer.width || py >= layer.height) continue;
-      this.applyPixel(sprite, px, py, this.color);
+      if (px < 0 || py < 0 || px >= cel.width || py >= cel.height) continue;
+      this.applyPixel(cel, px, py, this.color);
       // const i = pixelIndex(px, py, layer.width);
 
       // layer.pixels[i + 3] = 0; // hard erase alpha
@@ -552,9 +621,11 @@ export class EraserTool extends Tool {
 
   onMove(sprite, x, y, viewport) {
     if (this.lastX === null) return;
+    const frame = sprite.currentFrame;
+    const cel = frame.getCel(sprite.activeLayer, sprite.width, sprite.height);
     const mask = viewport.getBrushMask(viewport.cursorSize);
     this.eraseLine(
-      sprite,
+      cel,
       this.lastX,
       this.lastY,
       x,
@@ -562,7 +633,7 @@ export class EraserTool extends Tool {
       mask,
 
       (px, py) => {
-        this.applyPixel(sprite, px, py, this.color, "erase");
+        this.applyPixel(cel, px, py, this.color, "erase");
       }
     );
 
@@ -576,12 +647,7 @@ export class EraserTool extends Tool {
     this.lastY = null;
   }
 
-  drawPixel(sprite, x, y) {
-    const layer = sprite.currentFrame.layers[0];
-    setPixel(layer, x, y, ...this.color);
-  }
-  eraseLine(sprite, x0, y0, x1, y1, brushMask, plot) {
-    const layer = sprite.currentFrame.layers[0];
+  eraseLine(cel, x0, y0, x1, y1, brushMask, plot) {
     x0 |= 0;
     y0 |= 0;
     x1 |= 0;
@@ -615,9 +681,7 @@ export class EraserTool extends Tool {
   }
 }
 
-export function drawLine(sprite, x0, y0, x1, y1, brushMask, size, plot) {
-  const layer = sprite.currentFrame.layers[0];
-
+export function drawLine(cel, x0, y0, x1, y1, brushMask, size, plot) {
   x0 |= 0;
   y0 |= 0;
   x1 |= 0;

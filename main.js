@@ -19,6 +19,7 @@ import {
   Viewport,
 } from "./pixel-editor-core.js";
 import { exportPNG } from "./savefile.js";
+import { renderFrames, renderLayers } from "./timeline.js";
 
 export const WIDTH = 32;
 export const HEIGHT = 32;
@@ -48,6 +49,10 @@ let activeTool = toolKit.brush;
 const spriteData = {
   sprite: new Sprite(WIDTH, HEIGHT),
 };
+spriteData.sprite.addLayer("Layer 1");
+spriteData.sprite.addFrame();
+renderLayers(spriteData.sprite);
+renderFrames(spriteData.sprite);
 
 brushButton.addEventListener("click", () => {
   activeTool = toolKit.brush;
@@ -74,15 +79,24 @@ loadButton.addEventListener("click", async () => {
     spriteData.sprite = sprite;
   });
 });
+addFrameBtn.addEventListener("click", () => {
+  spriteData.sprite.addFrameAfter(spriteData.sprite.activeFrame, 0);
+  renderFrames(spriteData.sprite);
+});
 
-export let mousePixel = { x: -1, y: -1 };
+export let mousePixel = { x: null, y: null };
 const renderer = new Renderer(WIDTH, HEIGHT);
 renderer.resize(WIDTH, HEIGHT);
 const viewport = new Viewport(canvas);
-const rect = viewport.canvas.getBoundingClientRect();
-viewport.resize(rect.width, rect.height);
+function resizeViewport() {
+  const rect = canvas.getBoundingClientRect();
+  viewport.resize(rect.width, rect.height);
+}
+const resizeObserver = new ResizeObserver(() => {
+  resizeViewport();
+});
 
-spriteData.sprite.addFrame();
+resizeObserver.observe(canvas);
 
 function getPixelFromMouse(e) {
   const rect = viewport.canvas.getBoundingClientRect();
@@ -134,16 +148,6 @@ canvas.addEventListener("wheel", (e) => {
   else viewport.zoomOut();
 });
 
-window.addEventListener("mousemove", (e) => {
-  if (drawing) {
-    const { x, y } = getPixelFromMouse(e);
-
-    mousePixel.x = x;
-    mousePixel.y = y;
-    activeTool.onMove(spriteData.sprite, x, y, viewport);
-  }
-  mousePixel = getPixelFromMouse(e);
-});
 canvas.addEventListener(
   "wheel",
   (e) => {
@@ -180,31 +184,44 @@ window.addEventListener("mousedown", (e) => {
   }
 });
 window.addEventListener("mousemove", (e) => {
-  if (!viewport.isPanning) return;
+  const { x, y } = getPixelFromMouse(e);
+  mousePixel.x = x;
+  mousePixel.y = y;
 
-  const dx = e.clientX - viewport.panStartX;
-  const dy = e.clientY - viewport.panStartY;
+  // Panning
+  if (viewport.isPanning) {
+    const dx = e.clientX - viewport.panStartX;
+    const dy = e.clientY - viewport.panStartY;
 
-  viewport.panX = viewport.panOriginX + dx;
-  viewport.panY = viewport.panOriginY + dy;
+    viewport.panX = viewport.panOriginX + dx;
+    viewport.panY = viewport.panOriginY + dy;
+  }
+
+  // Drawing
+  if (drawing) {
+    activeTool.onMove(spriteData.sprite, x, y, viewport);
+  }
 });
 
 window.addEventListener("mouseup", () => {
   viewport.isPanning = false;
 });
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Shift") shiftDown = true;
+  if (e.key === "Shift" && !e.repeat) shiftDown = true;
 });
 
 window.addEventListener("keyup", (e) => {
   if (e.key === "Shift") shiftDown = false;
 });
-
+window.addEventListener("blur", () => {
+  shiftDown = false;
+});
 function draw(e, pixelX, pixelY) {
   // activeTool.onDown(spriteData.sprite, pixelX, pixelY, viewport);
 }
 function loop() {
   renderer.renderFrame(
+    spriteData.sprite,
     spriteData.sprite.currentFrame,
     spriteData.sprite.width,
     spriteData.sprite.height
@@ -212,9 +229,9 @@ function loop() {
   viewport.draw(renderer.canvas);
   if (
     activeTool instanceof BrushTool &&
+    activeTool.anchor !== null &&
     shiftDown &&
-    toolKit.brush.anchor &&
-    drawline
+    mousePixel.x !== null
   ) {
     viewport.drawLinePreview(
       toolKit.brush.anchor.x,

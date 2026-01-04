@@ -2,106 +2,6 @@
 <html>
   <head>
     <link rel="stylesheet" href="style.css" />
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
-        overflow-y: hidden;
-      }
-      body {
-        display: grid;
-        grid-template-rows: repeat(1, 100%);
-        grid-template-columns: repeat(3, 1fr);
-      }
-      #toolbar {
-        display: flex;
-        flex-direction: row;
-      }
-      #canvas {
-        width: 800px;
-        height: 100%;
-        image-rendering: pixelated;
-        border: 1px solid #444;
-        cursor: crosshair;
-
-        box-sizing: border-box;
-        touch-action: none;
-      }
-      #ui {
-        border: 1px solid black;
-      }
-      button {
-        font-family: Pixelify;
-        font-weight: 100;
-        font-size: large;
-      }
-      /* save dialog box styles */
-      .modal {
-        font-family: Pixelify;
-        font-weight: 100;
-        font-size: x-large;
-        box-sizing: border-box;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-      }
-
-      .modal-box {
-        background: #222;
-        padding: 16px 16px;
-        border-radius: 16px;
-        width: auto;
-        color: #ffffff;
-      }
-
-      .modal.hidden {
-        display: none;
-      }
-      .modal input:focus {
-        outline: none;
-      }
-      .modal input {
-        font-family: Pixelify;
-        font-weight: 100;
-        font-size: larger;
-        padding: 8px;
-        border-radius: 8px;
-        margin: auto;
-      }
-
-      .buttons {
-        display: flex;
-
-        justify-content: space-evenly;
-        gap: 8px;
-        margin-top: 12px;
-      }
-
-      /* open project styles */
-      .project-list {
-        max-height: 240px;
-        overflow-y: auto;
-        margin-top: 8px;
-        border: 1px solid #333;
-      }
-
-      .project-item {
-        padding: 8px;
-        cursor: pointer;
-        border-bottom: 1px solid #333;
-      }
-
-      .project-item:hover {
-        background: #333;
-      }
-    </style>
   </head>
   <body>
     <div id="outsidebox">
@@ -168,6 +68,14 @@
       </div>
     </div>
 
+    <!-- frame display -->
+    <div id="timeline">
+      <div id="frame-toolbar">
+        <button id="addFrameBtn">Add</button>
+      </div>
+      <div id="layer-panel"></div>
+      <div id="frame"></div>
+    </div>
     <script type="module" src="main.js" defer></script>
     <script type="module" src="ui.js" defer></script>
   </body>
