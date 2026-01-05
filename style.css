@@ -119,6 +119,39 @@ button {
   border-radius: 8px;
   height: 160px;
   display: flex;
+  flex-direction: column;
+}
+#timeline-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+
+  border-bottom: 1px solid #333;
+  background: #151515;
+}
+#timeline-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+#addFrameBtn {
+  width: auto;
+  height: 24px;
+  padding: 8px;
+  border-radius: 4px;
+  border: none;
+  background: #2a3b4d;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#addFrameBtn:hover {
+  background: #3a4f66;
 }
 #layer-panel {
   width: 20%;

@@ -12,6 +12,18 @@ import {
   strokeId,
 } from "./main.js";
 
+const selection = {
+  startX: null,
+  startY: null,
+  endX: null,
+  endY: null,
+  x: null,
+  y: null,
+  width: null,
+  height: null,
+  active: false,
+};
+
 export function pixelIndex(x, y, width) {
   return (y * width + x) * 4;
 }
@@ -680,7 +692,35 @@ export class EraserTool extends Tool {
     }
   }
 }
+export class SelectionTool {
+  onDown(sprite, x, y) {
+    selection.startX = x;
+    selection.startY = y;
+  }
+  onMove(sprite, x, y) {
+    selection.endX = x;
+    selection.endY = y;
+    selection.width = Math.abs(selection.endX - selection.startX);
+    selection.height = Math.abs(selection.endY - selection.startY);
+    selection.x = Math.min(selection.startX, selection.endX);
+    selection.y = Math.min(selection.startY, selection.endY);
+  }
+  onUp(sprite, x, y) {
+    selection.active = false;
+  }
+}
+export function drawSelection(ctx, viewport) {
+  if (selection.width === 0 || selection.height === 0) return;
+  const { zoom, offsetX, offsetY } = viewport;
+  ctx.save();
+  ctx.setTransform(zoom, 0, 0, zoom, offsetX, offsetY);
+  ctx.strokeStyle = "#ffffffff";
+  ctx.lineWidth = 2 / zoom;
+  ctx.setLineDash([6 / zoom, 6 / zoom]);
 
+  ctx.strokeRect(selection.x, selection.y, selection.width, selection.height);
+  ctx.restore();
+}
 export function drawLine(cel, x0, y0, x1, y1, brushMask, size, plot) {
   x0 |= 0;
   y0 |= 0;

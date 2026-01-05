@@ -24,6 +24,9 @@
         <div id="load-file">
           <button>Load File</button>
         </div>
+        <div id="selection">
+          <button>Selection</button>
+        </div>
       </div>
     </div>
     <div id="viewport">
@@ -70,11 +73,13 @@
 
     <!-- frame display -->
     <div id="timeline">
-      <div id="frame-toolbar">
+      <div id="timeline-header">
         <button id="addFrameBtn">Add</button>
       </div>
-      <div id="layer-panel"></div>
-      <div id="frame"></div>
+      <div id="timeline-body">
+        <div id="layer-panel"></div>
+        <div id="frame"></div>
+      </div>
     </div>
     <script type="module" src="main.js" defer></script>
     <script type="module" src="ui.js" defer></script>

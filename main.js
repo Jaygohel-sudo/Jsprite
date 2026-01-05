@@ -17,6 +17,8 @@ import {
   BrushTool,
   EraserTool,
   Viewport,
+  SelectionTool,
+  drawSelection,
 } from "./pixel-editor-core.js";
 import { exportPNG } from "./savefile.js";
 import { renderFrames, renderLayers } from "./timeline.js";
@@ -42,6 +44,7 @@ let lastZoomTime = 0;
 export const toolKit = {
   brush: new BrushTool([255, 255, 0, 255]),
   eraser: new EraserTool([0, 0, 0, 0]),
+  selection: new SelectionTool(),
 };
 
 let activeTool = toolKit.brush;
@@ -59,6 +62,9 @@ brushButton.addEventListener("click", () => {
 });
 eraserButton.addEventListener("click", () => {
   activeTool = toolKit.eraser;
+});
+selection.addEventListener("click", () => {
+  activeTool = toolKit.selection;
 });
 saveButton.addEventListener("click", async () => {
   await save(spriteData.sprite);
@@ -227,6 +233,7 @@ function loop() {
     spriteData.sprite.height
   );
   viewport.draw(renderer.canvas);
+  drawSelection(viewport.ctx, viewport);
   if (
     activeTool instanceof BrushTool &&
     activeTool.anchor !== null &&
