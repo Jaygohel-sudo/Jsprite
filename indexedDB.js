@@ -1,7 +1,8 @@
-import { Sprite, Frame, Layer } from "./pixel-editor-core.js";
+import { Sprite, Frame, Layer, Cel } from "./pixel-editor-core.js";
 
 const dialog = document.getElementById("saveDialog");
 const input = document.getElementById("projectNameInput");
+const schemaVersion = 2.0;
 
 export const fileState = {
   id: null,
@@ -27,34 +28,37 @@ export function openDB() {
 }
 export async function saveSpriteToDB(sprite, id) {
   const db = await openDB();
-  console.log(db);
+
   const tx = db.transaction("sprites", "readwrite");
   const store = tx.objectStore("sprites");
 
   const data = {
+    schemaVersion: 2,
     id,
-    name: id,
+    name: sprite.name ?? id,
     width: sprite.width,
     height: sprite.height,
     activeFrame: sprite.activeFrame,
 
+    layers: sprite.layers.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      visible: layer.visible,
+      opacity: layer.opacity,
+    })),
+
     frames: sprite.frames.map((frame) => ({
-      layers: frame.layers.map((layer) => ({
-        width: layer.width,
-        height: layer.height,
-        visible: layer.visible,
-        opacity: layer.opacity,
-        pixels: layer.pixels, // Uint8ClampedArray stored directly
+      duration: frame.duration,
+      cels: frame.cels.map((cel) => ({
+        layerId: cel.layerId,
+        pixels: cel.pixels,
       })),
     })),
   };
 
   let request = store.put(data);
 
-  request.onsuccess = function () {
-    // (4)
-    console.log(sprite.currentFrame.layers[0].pixels);
-  };
+  request.onsuccess = function () {};
 
   request.onerror = function () {
     console.log("Error", request.error);
@@ -74,21 +78,33 @@ export async function loadSpriteFromDB(id = "autosave") {
     req.onsuccess = () => {
       const data = req.result;
       if (!data) return resolve(null);
+      if (!data.schemaVersion) {
+      }
 
       const sprite = new Sprite(data.width, data.height);
-      sprite.activeFrame = data.activeFrame;
+      sprite.frames.length = 0;
+      sprite.layers.length = 0;
+      sprite.name = data.name;
+      sprite.activeFrame = Math.min(data.activeFrame, data.frames.length - 1);
 
-      data.frames.forEach((frameData) => {
+      // restore layers
+      data.layers.forEach((l) => {
+        const layer = new Layer(l.name);
+        layer.id = l.id;
+        layer.visible = l.visible;
+        layer.opacity = l.opacity;
+        sprite.layers.push(layer);
+      });
+
+      // restore frames & cels
+      data.frames.forEach((f) => {
         const frame = new Frame();
+        frame.duration = f.duration;
 
-        frameData.layers.forEach((layerData) => {
-          const layer = new Layer(layerData.width, layerData.height);
-
-          layer.visible = layerData.visible;
-          layer.opacity = layerData.opacity;
-          layer.pixels.set(layerData.pixels);
-
-          frame.layers.push(layer);
+        f.cels.forEach((c) => {
+          const cel = new Cel(c.layerId, sprite.width, sprite.height);
+          cel.pixels.set(c.pixels);
+          frame.cels.push(cel);
         });
 
         sprite.frames.push(frame);
@@ -130,6 +146,7 @@ export async function openSaveDialog(sprite) {
   const close = () => {
     dialog.classList.add("hidden");
     saveBtn.removeEventListener("click", onSave);
+    cancelBtn.removeEventListener("click", close);
   };
 
   const saveBtn = document.getElementById("saveConfirm");
@@ -152,9 +169,8 @@ export async function save(sprite) {
 }
 async function saveAs(sprite, name) {
   await saveSpriteToDB(sprite, name);
-
+  sprite.name = name;
   fileState.id = name;
   fileState.name = name;
   fileState.dirty = false;
-  console.log(fileState);
 }

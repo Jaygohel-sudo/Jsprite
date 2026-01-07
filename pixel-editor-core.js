@@ -24,6 +24,11 @@ const selection = {
   active: false,
 };
 
+export const spriteManager = {
+  sprites: [],
+  activeSpriteId: null,
+};
+
 export function pixelIndex(x, y, width) {
   return (y * width + x) * 4;
 }
@@ -491,6 +496,19 @@ export class Tool {
     if (!this.stroke) return;
 
     if (x < 0 || y < 0 || x >= cel.width || y >= cel.height) return;
+    //if selection is active then check for the position of pointer
+    if (selection.active) {
+      if (
+        !(
+          x >= selection.x &&
+          x < selection.x + selection.width &&
+          y >= selection.y &&
+          y < selection.y + selection.height
+        )
+      ) {
+        return; // return if it is out of bounds
+      }
+    }
 
     const pi = y * cel.width + x;
 
@@ -696,6 +714,9 @@ export class SelectionTool {
   onDown(sprite, x, y) {
     selection.startX = x;
     selection.startY = y;
+    selection.width = null;
+    selection.height = null;
+    selection.active = false;
   }
   onMove(sprite, x, y) {
     selection.endX = x;
@@ -706,7 +727,9 @@ export class SelectionTool {
     selection.y = Math.min(selection.startY, selection.endY);
   }
   onUp(sprite, x, y) {
-    selection.active = false;
+    if (selection.width && selection.height) {
+      selection.active = true;
+    }
   }
 }
 export function drawSelection(ctx, viewport) {

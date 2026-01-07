@@ -21,16 +21,30 @@ body {
 }
 body {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-columns: repeat(3, 1fr);
 }
 #outsidebox {
-  margin: 10px 8px;
-}
-#toolbar {
   display: flex;
-  flex-direction: row;
+  border: 2px solid black;
+  grid-column: 1/-1;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
 }
+#toolbar,
+#viewport,
+#ui-div {
+  min-width: 0;
+}
+
+#viewport {
+  flex: 1;
+
+  width: 100%;
+  display: flex;
+}
+
 #canvas {
   width: 100%;
   height: 100%;
@@ -39,6 +53,11 @@ body {
   cursor: crosshair;
 
   touch-action: none;
+}
+
+#toolbar {
+  display: flex;
+  flex-direction: row;
 }
 #ui {
   border: 1px solid black;
@@ -114,7 +133,7 @@ button {
 /* frame styles */
 #timeline {
   grid-column: 1/-1;
-  grid-row: 2;
+  grid-row: 3;
   border: 1px solid black;
   border-radius: 8px;
   height: 160px;
@@ -194,4 +213,58 @@ button {
 
 .frame-column.active {
   background: #2a3b4d;
+}
+
+/* menubar styles */
+
+.menubar {
+  grid-column: 1/-1;
+  display: flex;
+  background: #2b2b2b;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.menu-btn:hover {
+  background: #3a3a3a;
+}
+
+.dropdown {
+  position: absolute;
+  top: 32px;
+  left: 4px;
+  background: #2f2f2f;
+  border: 1px solid #444;
+  min-width: 140px;
+  z-index: 1000;
+}
+
+.dropdown button {
+  width: 100%;
+  background: none;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown button:hover {
+  background: #444;
+}
+
+.hidden {
+  display: none;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #444;
+  margin: 4px 0;
 }

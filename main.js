@@ -40,6 +40,7 @@ const saveButton = document.getElementById("save-file");
 const saveAsButton = document.getElementById("save-as");
 const exportButton = document.getElementById("export-file");
 const loadButton = document.getElementById("load-file");
+const viewportEl = document.getElementById("viewport");
 let lastZoomTime = 0;
 export const toolKit = {
   brush: new BrushTool([255, 255, 0, 255]),
@@ -94,15 +95,16 @@ export let mousePixel = { x: null, y: null };
 const renderer = new Renderer(WIDTH, HEIGHT);
 renderer.resize(WIDTH, HEIGHT);
 const viewport = new Viewport(canvas);
+
 function resizeViewport() {
-  const rect = canvas.getBoundingClientRect();
+  const rect = viewportEl.getBoundingClientRect();
   viewport.resize(rect.width, rect.height);
 }
 const resizeObserver = new ResizeObserver(() => {
   resizeViewport();
 });
 
-resizeObserver.observe(canvas);
+resizeObserver.observe(viewportEl);
 
 function getPixelFromMouse(e) {
   const rect = viewport.canvas.getBoundingClientRect();
@@ -214,6 +216,9 @@ window.addEventListener("mouseup", () => {
 });
 window.addEventListener("keydown", (e) => {
   if (e.key === "Shift" && !e.repeat) shiftDown = true;
+  if (e.ctrlKey && e.key.toLowerCase() === "r") {
+    e.preventDefault();
+  }
 });
 
 window.addEventListener("keyup", (e) => {
