@@ -38,12 +38,19 @@ export function clamp(v, min, max) {
 }
 
 export class Sprite {
-  constructor(width, height) {
+  constructor({
+    width,
+    height,
+    name = "Untitled Sprite",
+    id = crypto.randomUUID(),
+    frames = [],
+  }) {
+    this.id = id;
+    this.name = name;
     this.width = width;
     this.height = height;
-
+    this.frames = frames;
     this.layers = [];
-    this.frames = [];
     this.activeLayer = 0;
     this.activeFrame = 0;
   }

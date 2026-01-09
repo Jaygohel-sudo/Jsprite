@@ -19,8 +19,10 @@ import {
   Viewport,
   SelectionTool,
   drawSelection,
+  spriteManager,
 } from "./pixel-editor-core.js";
 import { exportPNG } from "./savefile.js";
+import { displaySpriteBar } from "./spritewindow.js";
 import { renderFrames, renderLayers } from "./timeline.js";
 
 export const WIDTH = 32;
@@ -40,23 +42,43 @@ const saveButton = document.getElementById("save-file");
 const saveAsButton = document.getElementById("save-as");
 const exportButton = document.getElementById("export-file");
 const loadButton = document.getElementById("load-file");
-const viewportEl = document.getElementById("viewport");
+const viewportEl = document.getElementById("canvas-div");
 let lastZoomTime = 0;
 export const toolKit = {
   brush: new BrushTool([255, 255, 0, 255]),
   eraser: new EraserTool([0, 0, 0, 0]),
   selection: new SelectionTool(),
 };
-
 let activeTool = toolKit.brush;
 
-const spriteData = {
-  sprite: new Sprite(WIDTH, HEIGHT),
-};
-spriteData.sprite.addLayer("Layer 1");
-spriteData.sprite.addFrame();
-renderLayers(spriteData.sprite);
-renderFrames(spriteData.sprite);
+export function getActiveSprite() {
+  return spriteManager.sprites.find(
+    (s) => s.id === spriteManager.activeSpriteId
+  );
+}
+
+const firstSprite = new Sprite({
+  name: "Sprite 1",
+  width: WIDTH,
+  height: HEIGHT,
+});
+
+spriteManager.sprites.push(firstSprite);
+spriteManager.activeSpriteId = firstSprite.id;
+export async function withActiveSprite(fn) {
+  const sprite = getActiveSprite();
+  if (!sprite) return;
+  return fn(sprite);
+}
+export const renderer = new Renderer(WIDTH, HEIGHT);
+displaySpriteBar();
+withActiveSprite((sprite) => {
+  sprite.addLayer("Layer 1");
+  sprite.addFrame();
+  renderLayers(sprite);
+  renderFrames(sprite);
+  renderer.resize(sprite.width, sprite.height);
+});
 
 brushButton.addEventListener("click", () => {
   activeTool = toolKit.brush;
@@ -68,32 +90,35 @@ selection.addEventListener("click", () => {
   activeTool = toolKit.selection;
 });
 saveButton.addEventListener("click", async () => {
-  await save(spriteData.sprite);
+  await withActiveSprite((sprite) => save(sprite));
 });
 saveAsButton.addEventListener("click", async () => {
-  await openSaveDialog(spriteData.sprite);
+  await withActiveSprite((sprite) => openSaveDialog(sprite));
 });
 exportButton.addEventListener("click", () => {
-  const img = renderer.renderFrameToImageData(
-    spriteData.sprite.currentFrame,
-    spriteData.sprite.width,
-    spriteData.sprite.height
-  );
-  exportPNG(img);
+  withActiveSprite((sprite) => {
+    const img = renderer.renderFrameToImageData(
+      sprite.currentFrame,
+      sprite.width,
+      sprite.height
+    );
+    exportPNG(img);
+  });
 });
 loadButton.addEventListener("click", async () => {
   await openOpenDialog((sprite) => {
-    spriteData.sprite = sprite;
+    sprite = sprite;
   });
 });
 addFrameBtn.addEventListener("click", () => {
-  spriteData.sprite.addFrameAfter(spriteData.sprite.activeFrame, 0);
-  renderFrames(spriteData.sprite);
+  withActiveSprite((sprite) => {
+    sprite.addFrameAfter(sprite.activeFrame, 0);
+    renderFrames(sprite);
+  });
 });
 
 export let mousePixel = { x: null, y: null };
-const renderer = new Renderer(WIDTH, HEIGHT);
-renderer.resize(WIDTH, HEIGHT);
+
 const viewport = new Viewport(canvas);
 
 function resizeViewport() {
@@ -139,8 +164,7 @@ canvas.addEventListener("mousedown", (e) => {
     const { x, y } = getPixelFromMouse(e);
     mousePixel.x = x;
     mousePixel.y = y;
-
-    activeTool.onDown(spriteData.sprite, x, y, viewport);
+    withActiveSprite((sprite) => activeTool.onDown(sprite, x, y, viewport));
   }
 });
 canvas.addEventListener("wheel", (e) => {
@@ -207,7 +231,7 @@ window.addEventListener("mousemove", (e) => {
 
   // Drawing
   if (drawing) {
-    activeTool.onMove(spriteData.sprite, x, y, viewport);
+    withActiveSprite((sprite) => activeTool.onMove(sprite, x, y, viewport));
   }
 });
 
@@ -216,9 +240,9 @@ window.addEventListener("mouseup", () => {
 });
 window.addEventListener("keydown", (e) => {
   if (e.key === "Shift" && !e.repeat) shiftDown = true;
-  if (e.ctrlKey && e.key.toLowerCase() === "r") {
-    e.preventDefault();
-  }
+  // if (e.ctrlKey && e.key.toLowerCase() === "r") {
+  //   e.preventDefault();
+  // }
 });
 
 window.addEventListener("keyup", (e) => {
@@ -228,15 +252,18 @@ window.addEventListener("blur", () => {
   shiftDown = false;
 });
 function draw(e, pixelX, pixelY) {
-  // activeTool.onDown(spriteData.sprite, pixelX, pixelY, viewport);
+  // activeTool.onDown( sprite, pixelX, pixelY, viewport);
 }
 function loop() {
-  renderer.renderFrame(
-    spriteData.sprite,
-    spriteData.sprite.currentFrame,
-    spriteData.sprite.width,
-    spriteData.sprite.height
-  );
+  withActiveSprite((sprite) => {
+    renderer.renderFrame(
+      sprite,
+      sprite.currentFrame,
+      sprite.width,
+      sprite.height
+    );
+  });
+
   viewport.draw(renderer.canvas);
   drawSelection(viewport.ctx, viewport);
   if (

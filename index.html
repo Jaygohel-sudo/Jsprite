@@ -44,7 +44,10 @@
         </div>
       </div>
       <div id="viewport">
-        <canvas id="canvas"></canvas>
+        <div id="sprite-window"></div>
+        <div id="canvas-div">
+          <canvas id="canvas"></canvas>
+        </div>
       </div>
       <div id="ui-div">
         <canvas id="ui"></canvas>
@@ -54,18 +57,25 @@
     <div id="newFileDialog" class="modal hidden">
       <div class="modal-box">
         <h3>Create New File</h3>
-        <input
-          id="newFileWidthInput"
-          type="number"
-          placeholder="width"
-          autofocus
-        />
-        <input
-          id="newFileHeightInput"
-          type="number"
-          placeholder="height"
-          autofocus
-        />
+        <div class="form-row">
+          <label for="newFileNameInput">Name</label>
+          <input
+            id="newFileNameInput"
+            type="text"
+            placeholder="Untitled Sprite"
+            autofocus
+          />
+        </div>
+
+        <div class="form-row">
+          <label for="newFileWidthInput">Height</label>
+          <input id="newFileWidthInput" type="number" placeholder="width" />
+        </div>
+
+        <div class="form-row">
+          <label for="newFileHeightInput">Height</label>
+          <input id="newFileHeightInput" type="number" placeholder="height" />
+        </div>
         <div class="buttons">
           <button id="createNewFile">Create</button>
           <button id="cancelNewFile">Cancel</button>
