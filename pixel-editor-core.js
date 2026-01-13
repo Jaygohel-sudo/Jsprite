@@ -88,6 +88,15 @@ export class Sprite {
     this.activeFrame = index + 1;
     return frame;
   }
+  removeFrame(index = this.activeFrame) {
+    if (this.frames.length <= 1) return;
+
+    this.frames.splice(index, 1);
+
+    if (this.activeFrame >= this.frames.length) {
+      this.activeFrame = this.frames.length - 1;
+    }
+  }
 
   get currentFrame() {
     return this.frames[this.activeFrame];
@@ -97,6 +106,7 @@ export class Sprite {
 export class Frame {
   constructor() {
     this.cels = new Map();
+    this.duration = 100;
   }
 
   getCel(layerIndex, width, height) {

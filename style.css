@@ -62,7 +62,8 @@ body {
 
 #toolbar {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  gap: 8px;
 }
 #ui {
   border: 1px solid black;
@@ -139,10 +140,38 @@ button {
 .project-item:hover {
   background: #333;
 }
+/* playback controls */
+
+.animation-bar {
+  grid-column: 1/-1;
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 6px;
+  background: #f3f3f3;
+  border-top: 1px solid #ccc;
+  font-family: Pixelify;
+  font-size: 20px;
+}
+
+.animation-bar input[type="range"] {
+  width: 150px;
+}
+.animation-bar button {
+  width: 30px;
+}
+.animation-bar label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* frame styles */
 #timeline {
   grid-column: 1/-1;
-  grid-row: 3;
+
   border: 1px solid black;
   border-radius: 8px;
   height: 160px;
@@ -196,34 +225,37 @@ button {
   display: grid;
   grid-auto-columns: 32px;
   grid-auto-flow: column;
+  margin-left: 8px;
 }
 
 .frame-column {
   display: grid;
   grid-auto-rows: 28px;
-  border-right: 1px solid #333;
+
+  padding: 2px;
 }
 
 .frame-cell {
-  border-bottom: 1px solid #333;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border: 2px solid rgb(5, 117, 39);
 }
 
 .frame-cell.empty {
-  background: #1e1e1e;
 }
 
-.frame-cell.filled {
-  background: #3a3a3a;
+.frame-cell.filled::after {
+  content: "";
+  width: 50%;
+  height: 50%;
+  background: #181818;
+  rotate: 45deg;
 }
-
-.frame-column.active {
-  background: #2a3b4d;
+.frame-cell.active-cell {
+  box-shadow: inset 0 0 0 3px #0e4d02;
 }
-
 /* menubar styles */
 
 .menubar {

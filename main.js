@@ -1,3 +1,4 @@
+import { AnimationPlayer } from "./animationPlayer.js";
 import { RGB } from "./colorPicker.js";
 import { History } from "./commands.js";
 
@@ -43,6 +44,8 @@ const saveAsButton = document.getElementById("save-as");
 const exportButton = document.getElementById("export-file");
 const loadButton = document.getElementById("load-file");
 const viewportEl = document.getElementById("canvas-div");
+const playButton = document.getElementById("play-btn");
+const stopButton = document.getElementById("stop-btn");
 let lastZoomTime = 0;
 export const toolKit = {
   brush: new BrushTool([255, 255, 0, 255]),
@@ -106,13 +109,33 @@ exportButton.addEventListener("click", () => {
   });
 });
 loadButton.addEventListener("click", async () => {
-  await openOpenDialog((sprite) => {
-    sprite = sprite;
+  await openOpenDialog((loadedSprite) => {
+    if (!loadedSprite) return;
+
+    // 1. Add sprite
+    spriteManager.sprites.push(loadedSprite);
+
+    // 2. Activate it
+    spriteManager.activeSpriteId = loadedSprite.id;
+
+    // 3. Resize renderer
+    renderer.resize(loadedSprite.width, loadedSprite.height);
+
+    // 4. Refresh UI
+    renderLayers(loadedSprite);
+    renderFrames(loadedSprite);
+    displaySpriteBar();
   });
 });
 addFrameBtn.addEventListener("click", () => {
   withActiveSprite((sprite) => {
     sprite.addFrameAfter(sprite.activeFrame, 0);
+    renderFrames(sprite);
+  });
+});
+removeFrameBtn.addEventListener("click", () => {
+  withActiveSprite((sprite) => {
+    sprite.removeFrame();
     renderFrames(sprite);
   });
 });
@@ -164,7 +187,10 @@ canvas.addEventListener("mousedown", (e) => {
     const { x, y } = getPixelFromMouse(e);
     mousePixel.x = x;
     mousePixel.y = y;
-    withActiveSprite((sprite) => activeTool.onDown(sprite, x, y, viewport));
+    withActiveSprite((sprite) => {
+      activeTool.onDown(sprite, x, y, viewport);
+      renderFrames(sprite);
+    });
   }
 });
 canvas.addEventListener("wheel", (e) => {
@@ -254,8 +280,19 @@ window.addEventListener("blur", () => {
 function draw(e, pixelX, pixelY) {
   // activeTool.onDown( sprite, pixelX, pixelY, viewport);
 }
-function loop() {
+
+playButton.onclick = () =>
+  withActiveSprite((sprite) => animationPlayer.play(sprite));
+stopButton.onclick = () =>
+  withActiveSprite((sprite) => animationPlayer.stop(sprite));
+let lastTime = performance.now();
+const animationPlayer = new AnimationPlayer();
+
+function loop(now = performance.now()) {
+  const dt = now - lastTime;
+  lastTime = now;
   withActiveSprite((sprite) => {
+    animationPlayer.update(dt, sprite);
     renderer.renderFrame(
       sprite,
       sprite.currentFrame,

@@ -40,10 +40,11 @@ newFile.addEventListener("click", () => {
 });
 export async function openCreateFileDialog() {
   newFileDialog.classList.remove("hidden");
-  const name = nameInput.value.trim();
-  const width = widthInput.value;
-  const height = heightInput.value;
+
   function create() {
+    const name = nameInput.value.trim() || "Untitled Sprite";
+    const width = Number(widthInput.value);
+    const height = Number(heightInput.value);
     const sprite = new Sprite({ width: width, height: height, name: name });
     spriteManager.sprites.push(sprite);
     spriteManager.activeSpriteId = sprite.id;

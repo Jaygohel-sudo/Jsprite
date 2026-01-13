@@ -49,8 +49,8 @@ export async function saveSpriteToDB(sprite, id) {
 
     frames: sprite.frames.map((frame) => ({
       duration: frame.duration,
-      cels: frame.cels.map((cel) => ({
-        layerId: cel.layerId,
+      cels: Array.from(frame.cels.entries()).map(([layerId, cel]) => ({
+        layerId,
         pixels: cel.pixels,
       })),
     })),
@@ -81,10 +81,12 @@ export async function loadSpriteFromDB(id = "autosave") {
       if (!data.schemaVersion) {
       }
 
-      const sprite = new Sprite(data.width, data.height);
-      sprite.frames.length = 0;
-      sprite.layers.length = 0;
-      sprite.name = data.name;
+      const sprite = new Sprite({
+        width: data.width,
+        height: data.height,
+        name: data.name,
+      });
+
       sprite.activeFrame = Math.min(data.activeFrame, data.frames.length - 1);
 
       // restore layers
@@ -102,9 +104,9 @@ export async function loadSpriteFromDB(id = "autosave") {
         frame.duration = f.duration;
 
         f.cels.forEach((c) => {
-          const cel = new Cel(c.layerId, sprite.width, sprite.height);
-          cel.pixels.set(c.pixels);
-          frame.cels.push(cel);
+          const cel = new Cel(sprite.width, sprite.height);
+          cel.pixels = new Uint8ClampedArray(c.pixels);
+          frame.cels.set(c.layerId, cel);
         });
 
         sprite.frames.push(frame);

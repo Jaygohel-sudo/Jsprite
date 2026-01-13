@@ -44,8 +44,19 @@ export function renderFrames(sprite) {
       const hasCel = frame.cels.has(layerIndex);
       cell.classList.add(hasCel ? "filled" : "empty");
 
+      if (layerIndex === sprite.activeLayer) {
+        cell.classList.add("active-layer");
+      }
+
+      if (
+        frameIndex === sprite.activeFrame &&
+        layerIndex === sprite.activeLayer
+      ) {
+        cell.classList.add("active-cell");
+      }
       cell.addEventListener("click", () => {
         sprite.activeFrame = frameIndex;
+        sprite.activeLayer = layerIndex;
         renderFrames(sprite);
       });
 

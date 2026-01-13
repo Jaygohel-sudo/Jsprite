@@ -21,27 +21,19 @@
     <!-- the main box -->
     <div id="outsidebox">
       <div id="toolbar">
-        <div id="brush">
-          <button>Brush</button>
-        </div>
-        <div id="eraser">
-          <button>Eraser</button>
-        </div>
-        <div id="save-file">
-          <button>Save File</button>
-        </div>
-        <div id="save-as">
-          <button>Save As</button>
-        </div>
-        <div id="export-file">
-          <button>Export File</button>
-        </div>
-        <div id="load-file">
-          <button>Load File</button>
-        </div>
-        <div id="selection">
-          <button>Selection</button>
-        </div>
+        <button id="brush">Brush</button>
+
+        <button id="eraser">Eraser</button>
+
+        <button id="save-file">Save File</button>
+
+        <button id="save-as">Save As</button>
+
+        <button id="export-file">Export File</button>
+
+        <button id="load-file">Load File</button>
+
+        <button id="selection">Selection</button>
       </div>
       <div id="viewport">
         <div id="sprite-window"></div>
@@ -117,11 +109,37 @@
         </div>
       </div>
     </div>
+    <!-- playback area -->
+    <div id="animation-controls" class="animation-bar">
+      <!-- Play / Stop buttons -->
+      <button id="play-btn" title="Play Animation">▶️</button>
+      <button id="stop-btn" title="Stop Animation">⏹</button>
+
+      <!-- Loop toggle -->
+      <label>
+        <input type="checkbox" id="loop-toggle" checked />
+        Loop
+      </label>
+
+      <!-- FPS control -->
+      <label>
+        FPS:
+        <input type="number" id="fps-input" min="1" max="60" value="10" />
+      </label>
+
+      <!-- Frame scrub slider -->
+      <label>
+        Frame:
+        <input type="range" id="frame-scrubber" min="0" max="0" value="0" />
+        <span id="frame-counter">0 / 0</span>
+      </label>
+    </div>
 
     <!-- frame display -->
     <div id="timeline">
       <div id="timeline-header">
-        <button id="addFrameBtn">Add</button>
+        <button id="addFrameBtn">Add Frame</button>
+        <button id="removeFrameBtn">Remove Frame</button>
       </div>
       <div id="timeline-body">
         <div id="layer-panel"></div>
